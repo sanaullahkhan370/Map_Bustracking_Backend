@@ -47,7 +47,6 @@ const BusSchema = new mongoose.Schema({
   longitude: Number,
   updatedAt: Date,
 });
-
 const Bus = mongoose.model("Bus", BusSchema, "buses");
 
 // 👤 USER SCHEMA
@@ -56,8 +55,15 @@ const UserSchema = new mongoose.Schema({
   password: String,
   role: { type: String, default: "student" },
 });
-
 const User = mongoose.model("User", UserSchema, "users");
+
+// 💳 PAYMENT SCHEMA
+const PaymentSchema = new mongoose.Schema({
+  txnId: { type: String, required: true },
+  sender: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const Payment = mongoose.model("Payment", PaymentSchema, "payments");
 
 /*********************************
  * ROUTES
@@ -71,7 +77,7 @@ app.get("/", (req, res) => {
 
 // ===================== USER APIs =====================
 
-// ➕ REGISTER USER (AUTO USER CREATE)
+// ➕ REGISTER USER
 app.post("/api/register", async (req, res) => {
   try {
     const { username, password, role } = req.body;
@@ -152,6 +158,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+
 // ===================== BUS APIs =====================
 
 // 📍 LOCATION UPDATE
@@ -198,6 +205,53 @@ app.get("/api/buses", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch buses",
+    });
+  }
+});
+
+
+// ===================== PAYMENT API =====================
+
+// 📩 SMS PAYMENT RECEIVE
+app.post("/api/payment-sms", async (req, res) => {
+  try {
+    const { txnId, sender } = req.body;
+
+    if (!txnId || !sender) {
+      return res.status(400).json({
+        success: false,
+        message: "txnId and sender required"
+      });
+    }
+
+    // 🔍 Duplicate check
+    const exists = await Payment.findOne({ txnId });
+
+    if (exists) {
+      return res.json({
+        success: true,
+        message: "Already exists"
+      });
+    }
+
+    // 💾 Save
+    await Payment.create({
+      txnId,
+      sender
+    });
+
+    console.log("💰 Payment Saved:", txnId);
+
+    return res.json({
+      success: true,
+      message: "Payment saved"
+    });
+
+  } catch (err) {
+    console.error("❌ Payment Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
     });
   }
 });
